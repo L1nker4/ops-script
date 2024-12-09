@@ -1,0 +1,51 @@
+version: '3'
+services:
+    miniflux:
+        image: miniflux/miniflux
+        ports:
+            - "8080:8080"
+        depends_on:
+            - postgres
+        environment:
+            - RUN_MIGRATIONS=1
+            - DATABASE_URL=postgres://miniflux:zero1234@postgres/miniflux?sslmode=disable
+    postgres:
+        image: postgres
+        ports:
+            - "5432:5432"
+        environment:
+            - POSTGRES_USER=miniflux
+            - POSTGRES_PASSWORD=zero1234
+        volumes:
+            - ./pg-data:/var/lib/postgresql/data
+    rsshub:
+        image: diygod/rsshub
+        restart: always
+        environment:
+            NODE_ENV: production
+            CACHE_TYPE: redis
+            REDIS_URL: "redis://redis:6379/"
+            PUPPETEER_WS_ENDPOINT: "ws://browserless:3000" # marked
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:1200/healthz"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        depends_on:
+            - redis
+            - browserless # marked
+    browserless:
+        image: browserless/chrome
+        restart: always # marked
+        ulimits: # marked
+            core: # marked
+                hard: 0 # marked
+                soft: 0 # marked
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:3000/pressure"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+    redis:
+        image: redis:alpine
+        restart: always
